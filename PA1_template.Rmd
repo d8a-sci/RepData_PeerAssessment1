@@ -99,7 +99,23 @@ The mean number of steps taken per day is `r round(total_mean,1)`. The median is
 
 
 ## What is the average daily activity pattern?
+A line plot for the daily activity is shown below.
+```{r pattern}
+by_interval	<- group_by(df,interval)
+n_days		<- length(unique(df$date))
+summed		<- summarise(by_interval,
+			     steps.sum=sum(steps, na.rm=TRUE),
+			     steps.mean=mean(steps, na.rm=TRUE),
+			     steps.avg=steps.sum/n_days)
 
+# Create plot
+plot(x=summed$interval, y=summed$steps.mean, type="l")
+
+max_interval	<- summed[which.max(summed$steps.sum),]$interval
+```
+
+The 5-minute interval, on average across all the days in the dataset, that contains the maximum number
+of steps is interval `r max_interval` to `r max_interval + 5`.
 
 
 ## Imputing missing values
