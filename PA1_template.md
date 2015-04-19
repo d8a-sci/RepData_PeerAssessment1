@@ -1,9 +1,4 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+# Reproducible Research: Peer Assessment 1
   
 
 This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute
@@ -12,7 +7,8 @@ during the months of October and November, 2012 and include the number of steps 
 
 The code uses (some of) the libaries below.
 
-```{r loadlibs, results='hide'}
+
+```r
 # Get libraries
 library(ggplot2,		quietly = TRUE, warn.conflicts=FALSE)
 library(plyr,			quietly = TRUE, warn.conflicts=FALSE)
@@ -35,7 +31,8 @@ Below is the code that is used to
 1. Pre-process the data
 
 
-```{r setup}
+
+```r
 # Define data source
 source_data	<- "./data/activity.csv"
 source_zip	<- "./data/activity.zip"
@@ -60,7 +57,8 @@ if ( !file.exists(source_data) ) {
 }
 ```
 
-```{r loading, cache=TRUE}
+
+```r
 # Load the data
 # Columns: steps, date, interval
 df	<- read.csv(source_data, header=TRUE, sep=",", stringsAsFactors = FALSE)
@@ -78,7 +76,8 @@ df	<- cbind(df,
 ## What is mean total number of steps taken per day?
 Here we calculate the total mean of steps/day; missing values in the dataset are ignored.
 
-```{r means}
+
+```r
 by_date		<- group_by(df,date)
 summed		<- summarise(by_date,
 			     steps.sum=sum(steps, na.rm=TRUE),
@@ -89,12 +88,15 @@ total_median	<- median(summed$steps.sum)
 ```
 
 Here is a histogram for the mean steps per day.
-```{r hist}
+
+```r
 # Create plot
 hist(summed$steps.sum, col="red", main="Total steps taken each day", xlab="# steps")
 ```
 
-The mean number of steps taken per day is `r round(total_mean,1)`. The median is `r total_median`.   
+![](PA1_template_files/figure-html/hist-1.png) 
+
+The mean number of steps taken per day is 9354.2. The median is 10395.   
    
 
 
