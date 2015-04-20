@@ -10,15 +10,14 @@ The code uses (some of) the libaries below.
 
 ```r
 # Get libraries
-library(ggplot2,		quietly = TRUE, warn.conflicts=FALSE)
-library(plyr,			quietly = TRUE, warn.conflicts=FALSE)
+library(lubridate,		quietly = TRUE, warn.conflicts=FALSE)
+library(qdapTools,		quietly = TRUE, warn.conflicts=FALSE)
 library(dplyr,			quietly = TRUE, warn.conflicts=FALSE)
 library(reshape2,		quietly = TRUE, warn.conflicts=FALSE)
 library(data.table,		quietly = TRUE, warn.conflicts=FALSE)
-library(tidyr,			quietly = TRUE, warn.conflicts=FALSE)
-library(lubridate,		quietly = TRUE, warn.conflicts=FALSE)
-library(qdapTools,		quietly = TRUE, warn.conflicts=FALSE)
+library(ggplot2,		quietly = TRUE, warn.conflicts=FALSE)
 library(RColorBrewer,		quietly = TRUE, warn.conflicts=FALSE)
+library(tidyr,			quietly = TRUE, warn.conflicts=FALSE)
 ```
 
 
@@ -96,12 +95,17 @@ hist(summed$steps.sum, col="red", main="Total steps taken each day", xlab="# ste
 
 ![](PA1_template_files/figure-html/hist-1.png) 
 
-The mean number of steps taken per day is 9354.2. The median is 10395.   
+The mean number of steps taken per day is 9354.23. The median is 10395.00.   
    
 
 
 ## What is the average daily activity pattern?
-A line plot for the daily activity is shown below.
+The following creates a time series plot (type = "l") of the 5-minute interval (x-axis) and the
+average number of steps taken, averaged across all days (y-axis).  
+  
+The plot for the daily activity is shown below the code. Though the intervals are 5 minutes, the x-axis shows only hourly ticks 
+and the minor gridlines are at 15 minute intervals. 
+    
 
 ```r
 by_interval	<- group_by(df,interval)
@@ -110,23 +114,115 @@ summed		<- summarise(by_interval,
 			     steps.sum=sum(steps, na.rm=TRUE),
 			     steps.mean=mean(steps, na.rm=TRUE),
 			     steps.avg=steps.sum/n_days)
+```
+  
+    
 
+```r
 # Create plot
-plot(x=summed$interval, y=summed$steps.mean, type="l")
+# plot(x=summed$interval, y=summed$steps.mean, type="l")
+# Changed to ggplot2 
+				  
+i_fmt	<- function(x) {return(sprintf("%04s",x))} 
+p	<- qplot(data = summed, x=interval, y=steps.mean,  geom="line")
+p	<- p + scale_x_continuous(breaks=seq(0,2400,by=60),
+				  minor_breaks=seq(0,2400,by=15),
+				  labels=i_fmt)
+p	<- p + geom_area(fill="blue", alpha=0.2)
+p	<- p + theme(axis.text.x = element_text(angle=30, hjust=1))
+
+print(p)
 ```
 
-![](PA1_template_files/figure-html/pattern-1.png) 
+![](PA1_template_files/figure-html/plot-1.png) 
 
 ```r
 max_interval	<- summed[which.max(summed$steps.sum),]$interval
 ```
 
 The 5-minute interval, on average across all the days in the dataset, that contains the maximum number
-of steps is interval 835 to 840.
+of steps is the interval from 0835 to 0840.
 
 
 ## Imputing missing values
+There are a number of days/intervals where there are missing values (coded as NA). The presence of missing days
+may introduce bias into some calculations or summaries of the data.
 
+
+```r
+missings	<- sum(!complete.cases(df))
+```
+
+The total number of missing values in the dataset (i.e. the total number of rows with NAs) is 2304.
+
+They will be replaced by the mean for the interval. These means are already calculated in `summed`.  As for
+every day all intervals are present, we can conveniently use the `summed` dataframe to fill the missing values
+in the original since it will be recycled (`summed` has one row for each interval).
+
+
+```r
+# df <- mutate(df, steps.imputed = ifelse(!is.na(steps), steps, summed$steps.mean))
+# Replace steps immediately:
+df$steps <- transmute(df, steps.imputed = ifelse(!is.na(steps), steps, summed$steps.mean))[,1]
+```
+
+
+```r
+by_date		<- group_by(df,date)
+summed		<- summarise(by_date,
+			     steps.sum=sum(steps, na.rm=TRUE),
+			     steps.mean=mean(steps, na.rm=TRUE),
+			     steps.median=median(steps, na.rm=TRUE))
+total_mean	<- mean(summed$steps.sum)
+total_median	<- median(summed$steps.sum)
+```
+
+Here is the histogram for the mean steps per day based on the data set with the missing data imputed.
+
+
+```r
+# Create plot
+hist(summed$steps.sum, col="red", main="Total steps taken each day", xlab="# steps")
+```
+
+![](PA1_template_files/figure-html/hist-revisited-1.png) 
+
+The mean number of steps taken per day is 10766.19. The median is 10766.19.   
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date
+is a weekend day or not.
+
+
+```r
+df		<- mutate(df, daycat = factor( ifelse( weekdays(datetime) %in% c("Saturday","Sunday"), "weekend", "weekday")))
+```
+
+Categorise by interval and the new factor variable `daycat`, then summerise to obtain the means for the respective intervals.
+
+```r
+by_intv_dcat	<- group_by(df,interval,daycat)
+summed		<- summarise(by_intv_dcat, steps.mean=mean(steps, na.rm=TRUE))
+```
+    
+Now plot the results in a panel differentiating by the category of the weekday, i.e. a working day (weekday) or the weekend.
+
+```r
+# Create plot
+p	<- ggplot(summed, aes(x=interval, y=steps.mean)) + geom_line()
+p	<- p + facet_grid(daycat ~ .)
+p	<- p + scale_x_continuous(breaks=seq(0,2400,by=60),
+				  minor_breaks=seq(0,2400,by=15),
+				  labels=i_fmt)
+p	<- p + geom_area(fill="blue", alpha=0.2)
+p	<- p + theme(axis.text.x = element_text(angle=30, hjust=1))
+p	<- p + theme(strip.text.y=element_text(face="bold",colour="darkblue",angle=0))
+
+
+print(p)
+```
+
+![](PA1_template_files/figure-html/panel-plot-1.png) 
+
